@@ -1,0 +1,29 @@
+[Unit]
+Description=Network Namespace %i
+Requires=netns@%i.service
+BindsTo=netns@%i.service
+After=netns@%i.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment=ADDR_BASE=10.1.1 EXTERNAL_DEVICE=netns-%i INTERNAL_DEVICE=veth0
+EnvironmentFile=/etc/netns-%i.conf
+
+# Create a virtual ethernet pair device to let the namespace reach us
+ExecStart=/sbin/ip link add ${EXTERNAL_DEVICE} type veth peer name ${INTERNAL_DEVICE}
+
+# Set up our end of the veth device
+ExecStart=/sbin/ip addr add ${ADDR_BASE}.1/24 peer ${ADDR_BASE}.2/24 dev ${EXTERNAL_DEVICE}
+ExecStart=/sbin/ip link set ${EXTERNAL_DEVICE} up
+
+# Hand off the other end of the veth device to the namespace
+ExecStart=/sbin/ip link set ${INTERNAL_DEVICE} netns %i
+ExecStart=/sbin/ip netns exec %i /sbin/ip link set ${INTERNAL_DEVICE} up
+ExecStart=/sbin/ip netns exec %i /sbin/ip addr add ${ADDR_BASE}.2/24 peer ${ADDR_BASE}.1/24 dev ${INTERNAL_DEVICE}
+
+# Tear down bridge
+ExecStop=/sbin/ip link del ${EXTERNAL_DEVICE}
+
+[Install]
+WantedBy=netns@%i.service

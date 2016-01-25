@@ -1,0 +1,13 @@
+[Unit]
+Description=Network Namespace %i
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/sbin/ip netns add %i
+ExecStart=/sbin/ip netns exec %i /sbin/ip link set lo up
+ExecStop=/sbin/ip netns del %i
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
